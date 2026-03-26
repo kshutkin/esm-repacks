@@ -1,0 +1,609 @@
+{
+  "name": "@esm-repacks/dayjs",
+  "version": "1.11.20",
+  "description": "Proper ESM repack of dayjs with subpath exports for plugins and locales",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kshutkin/esm-repacks.git",
+    "directory": "packages/dayjs"
+  },
+  "scripts": {
+    "build": "node scripts/repack.mjs",
+    "test": "vitest run"
+  },
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "dayjs": "^1.11.13",
+    "vitest": "^3.1.1"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./plugin/advancedFormat": {
+      "import": "./dist/plugin/advancedFormat/index.js",
+      "types": "./dist/plugin/advancedFormat/index.d.ts"
+    },
+    "./plugin/arraySupport": {
+      "import": "./dist/plugin/arraySupport/index.js",
+      "types": "./dist/plugin/arraySupport/index.d.ts"
+    },
+    "./plugin/badMutable": {
+      "import": "./dist/plugin/badMutable/index.js",
+      "types": "./dist/plugin/badMutable/index.d.ts"
+    },
+    "./plugin/bigIntSupport": {
+      "import": "./dist/plugin/bigIntSupport/index.js",
+      "types": "./dist/plugin/bigIntSupport/index.d.ts"
+    },
+    "./plugin/buddhistEra": {
+      "import": "./dist/plugin/buddhistEra/index.js",
+      "types": "./dist/plugin/buddhistEra/index.d.ts"
+    },
+    "./plugin/calendar": {
+      "import": "./dist/plugin/calendar/index.js",
+      "types": "./dist/plugin/calendar/index.d.ts"
+    },
+    "./plugin/customParseFormat": {
+      "import": "./dist/plugin/customParseFormat/index.js",
+      "types": "./dist/plugin/customParseFormat/index.d.ts"
+    },
+    "./plugin/dayOfYear": {
+      "import": "./dist/plugin/dayOfYear/index.js",
+      "types": "./dist/plugin/dayOfYear/index.d.ts"
+    },
+    "./plugin/devHelper": {
+      "import": "./dist/plugin/devHelper/index.js",
+      "types": "./dist/plugin/devHelper/index.d.ts"
+    },
+    "./plugin/duration": {
+      "import": "./dist/plugin/duration/index.js",
+      "types": "./dist/plugin/duration/index.d.ts"
+    },
+    "./plugin/isBetween": {
+      "import": "./dist/plugin/isBetween/index.js",
+      "types": "./dist/plugin/isBetween/index.d.ts"
+    },
+    "./plugin/isLeapYear": {
+      "import": "./dist/plugin/isLeapYear/index.js",
+      "types": "./dist/plugin/isLeapYear/index.d.ts"
+    },
+    "./plugin/isMoment": {
+      "import": "./dist/plugin/isMoment/index.js",
+      "types": "./dist/plugin/isMoment/index.d.ts"
+    },
+    "./plugin/isSameOrAfter": {
+      "import": "./dist/plugin/isSameOrAfter/index.js",
+      "types": "./dist/plugin/isSameOrAfter/index.d.ts"
+    },
+    "./plugin/isSameOrBefore": {
+      "import": "./dist/plugin/isSameOrBefore/index.js",
+      "types": "./dist/plugin/isSameOrBefore/index.d.ts"
+    },
+    "./plugin/isToday": {
+      "import": "./dist/plugin/isToday/index.js",
+      "types": "./dist/plugin/isToday/index.d.ts"
+    },
+    "./plugin/isTomorrow": {
+      "import": "./dist/plugin/isTomorrow/index.js",
+      "types": "./dist/plugin/isTomorrow/index.d.ts"
+    },
+    "./plugin/isYesterday": {
+      "import": "./dist/plugin/isYesterday/index.js",
+      "types": "./dist/plugin/isYesterday/index.d.ts"
+    },
+    "./plugin/isoWeek": {
+      "import": "./dist/plugin/isoWeek/index.js",
+      "types": "./dist/plugin/isoWeek/index.d.ts"
+    },
+    "./plugin/isoWeeksInYear": {
+      "import": "./dist/plugin/isoWeeksInYear/index.js",
+      "types": "./dist/plugin/isoWeeksInYear/index.d.ts"
+    },
+    "./plugin/localeData": {
+      "import": "./dist/plugin/localeData/index.js",
+      "types": "./dist/plugin/localeData/index.d.ts"
+    },
+    "./plugin/localizedFormat": {
+      "import": "./dist/plugin/localizedFormat/index.js",
+      "types": "./dist/plugin/localizedFormat/index.d.ts"
+    },
+    "./plugin/minMax": {
+      "import": "./dist/plugin/minMax/index.js",
+      "types": "./dist/plugin/minMax/index.d.ts"
+    },
+    "./plugin/negativeYear": {
+      "import": "./dist/plugin/negativeYear/index.js",
+      "types": "./dist/plugin/negativeYear/index.d.ts"
+    },
+    "./plugin/objectSupport": {
+      "import": "./dist/plugin/objectSupport/index.js",
+      "types": "./dist/plugin/objectSupport/index.d.ts"
+    },
+    "./plugin/pluralGetSet": {
+      "import": "./dist/plugin/pluralGetSet/index.js",
+      "types": "./dist/plugin/pluralGetSet/index.d.ts"
+    },
+    "./plugin/preParsePostFormat": {
+      "import": "./dist/plugin/preParsePostFormat/index.js",
+      "types": "./dist/plugin/preParsePostFormat/index.d.ts"
+    },
+    "./plugin/quarterOfYear": {
+      "import": "./dist/plugin/quarterOfYear/index.js",
+      "types": "./dist/plugin/quarterOfYear/index.d.ts"
+    },
+    "./plugin/relativeTime": {
+      "import": "./dist/plugin/relativeTime/index.js",
+      "types": "./dist/plugin/relativeTime/index.d.ts"
+    },
+    "./plugin/timezone": {
+      "import": "./dist/plugin/timezone/index.js",
+      "types": "./dist/plugin/timezone/index.d.ts"
+    },
+    "./plugin/toArray": {
+      "import": "./dist/plugin/toArray/index.js",
+      "types": "./dist/plugin/toArray/index.d.ts"
+    },
+    "./plugin/toObject": {
+      "import": "./dist/plugin/toObject/index.js",
+      "types": "./dist/plugin/toObject/index.d.ts"
+    },
+    "./plugin/updateLocale": {
+      "import": "./dist/plugin/updateLocale/index.js",
+      "types": "./dist/plugin/updateLocale/index.d.ts"
+    },
+    "./plugin/utc": {
+      "import": "./dist/plugin/utc/index.js",
+      "types": "./dist/plugin/utc/index.d.ts"
+    },
+    "./plugin/weekOfYear": {
+      "import": "./dist/plugin/weekOfYear/index.js",
+      "types": "./dist/plugin/weekOfYear/index.d.ts"
+    },
+    "./plugin/weekYear": {
+      "import": "./dist/plugin/weekYear/index.js",
+      "types": "./dist/plugin/weekYear/index.d.ts"
+    },
+    "./plugin/weekday": {
+      "import": "./dist/plugin/weekday/index.js",
+      "types": "./dist/plugin/weekday/index.d.ts"
+    },
+    "./locale/af": {
+      "import": "./dist/locale/af.js"
+    },
+    "./locale/am": {
+      "import": "./dist/locale/am.js"
+    },
+    "./locale/ar": {
+      "import": "./dist/locale/ar.js"
+    },
+    "./locale/ar-dz": {
+      "import": "./dist/locale/ar-dz.js"
+    },
+    "./locale/ar-iq": {
+      "import": "./dist/locale/ar-iq.js"
+    },
+    "./locale/ar-kw": {
+      "import": "./dist/locale/ar-kw.js"
+    },
+    "./locale/ar-ly": {
+      "import": "./dist/locale/ar-ly.js"
+    },
+    "./locale/ar-ma": {
+      "import": "./dist/locale/ar-ma.js"
+    },
+    "./locale/ar-sa": {
+      "import": "./dist/locale/ar-sa.js"
+    },
+    "./locale/ar-tn": {
+      "import": "./dist/locale/ar-tn.js"
+    },
+    "./locale/az": {
+      "import": "./dist/locale/az.js"
+    },
+    "./locale/be": {
+      "import": "./dist/locale/be.js"
+    },
+    "./locale/bg": {
+      "import": "./dist/locale/bg.js"
+    },
+    "./locale/bi": {
+      "import": "./dist/locale/bi.js"
+    },
+    "./locale/bm": {
+      "import": "./dist/locale/bm.js"
+    },
+    "./locale/bn": {
+      "import": "./dist/locale/bn.js"
+    },
+    "./locale/bn-bd": {
+      "import": "./dist/locale/bn-bd.js"
+    },
+    "./locale/bo": {
+      "import": "./dist/locale/bo.js"
+    },
+    "./locale/br": {
+      "import": "./dist/locale/br.js"
+    },
+    "./locale/bs": {
+      "import": "./dist/locale/bs.js"
+    },
+    "./locale/ca": {
+      "import": "./dist/locale/ca.js"
+    },
+    "./locale/cs": {
+      "import": "./dist/locale/cs.js"
+    },
+    "./locale/cv": {
+      "import": "./dist/locale/cv.js"
+    },
+    "./locale/cy": {
+      "import": "./dist/locale/cy.js"
+    },
+    "./locale/da": {
+      "import": "./dist/locale/da.js"
+    },
+    "./locale/de": {
+      "import": "./dist/locale/de.js"
+    },
+    "./locale/de-at": {
+      "import": "./dist/locale/de-at.js"
+    },
+    "./locale/de-ch": {
+      "import": "./dist/locale/de-ch.js"
+    },
+    "./locale/dv": {
+      "import": "./dist/locale/dv.js"
+    },
+    "./locale/el": {
+      "import": "./dist/locale/el.js"
+    },
+    "./locale/en": {
+      "import": "./dist/locale/en.js"
+    },
+    "./locale/en-au": {
+      "import": "./dist/locale/en-au.js"
+    },
+    "./locale/en-ca": {
+      "import": "./dist/locale/en-ca.js"
+    },
+    "./locale/en-gb": {
+      "import": "./dist/locale/en-gb.js"
+    },
+    "./locale/en-ie": {
+      "import": "./dist/locale/en-ie.js"
+    },
+    "./locale/en-il": {
+      "import": "./dist/locale/en-il.js"
+    },
+    "./locale/en-in": {
+      "import": "./dist/locale/en-in.js"
+    },
+    "./locale/en-nz": {
+      "import": "./dist/locale/en-nz.js"
+    },
+    "./locale/en-sg": {
+      "import": "./dist/locale/en-sg.js"
+    },
+    "./locale/en-tt": {
+      "import": "./dist/locale/en-tt.js"
+    },
+    "./locale/eo": {
+      "import": "./dist/locale/eo.js"
+    },
+    "./locale/es": {
+      "import": "./dist/locale/es.js"
+    },
+    "./locale/es-do": {
+      "import": "./dist/locale/es-do.js"
+    },
+    "./locale/es-mx": {
+      "import": "./dist/locale/es-mx.js"
+    },
+    "./locale/es-pr": {
+      "import": "./dist/locale/es-pr.js"
+    },
+    "./locale/es-us": {
+      "import": "./dist/locale/es-us.js"
+    },
+    "./locale/et": {
+      "import": "./dist/locale/et.js"
+    },
+    "./locale/eu": {
+      "import": "./dist/locale/eu.js"
+    },
+    "./locale/fa": {
+      "import": "./dist/locale/fa.js"
+    },
+    "./locale/fi": {
+      "import": "./dist/locale/fi.js"
+    },
+    "./locale/fo": {
+      "import": "./dist/locale/fo.js"
+    },
+    "./locale/fr": {
+      "import": "./dist/locale/fr.js"
+    },
+    "./locale/fr-ca": {
+      "import": "./dist/locale/fr-ca.js"
+    },
+    "./locale/fr-ch": {
+      "import": "./dist/locale/fr-ch.js"
+    },
+    "./locale/fy": {
+      "import": "./dist/locale/fy.js"
+    },
+    "./locale/ga": {
+      "import": "./dist/locale/ga.js"
+    },
+    "./locale/gd": {
+      "import": "./dist/locale/gd.js"
+    },
+    "./locale/gl": {
+      "import": "./dist/locale/gl.js"
+    },
+    "./locale/gom-latn": {
+      "import": "./dist/locale/gom-latn.js"
+    },
+    "./locale/gu": {
+      "import": "./dist/locale/gu.js"
+    },
+    "./locale/he": {
+      "import": "./dist/locale/he.js"
+    },
+    "./locale/hi": {
+      "import": "./dist/locale/hi.js"
+    },
+    "./locale/hr": {
+      "import": "./dist/locale/hr.js"
+    },
+    "./locale/ht": {
+      "import": "./dist/locale/ht.js"
+    },
+    "./locale/hu": {
+      "import": "./dist/locale/hu.js"
+    },
+    "./locale/hy-am": {
+      "import": "./dist/locale/hy-am.js"
+    },
+    "./locale/id": {
+      "import": "./dist/locale/id.js"
+    },
+    "./locale/is": {
+      "import": "./dist/locale/is.js"
+    },
+    "./locale/it": {
+      "import": "./dist/locale/it.js"
+    },
+    "./locale/it-ch": {
+      "import": "./dist/locale/it-ch.js"
+    },
+    "./locale/ja": {
+      "import": "./dist/locale/ja.js"
+    },
+    "./locale/jv": {
+      "import": "./dist/locale/jv.js"
+    },
+    "./locale/ka": {
+      "import": "./dist/locale/ka.js"
+    },
+    "./locale/kk": {
+      "import": "./dist/locale/kk.js"
+    },
+    "./locale/km": {
+      "import": "./dist/locale/km.js"
+    },
+    "./locale/kn": {
+      "import": "./dist/locale/kn.js"
+    },
+    "./locale/ko": {
+      "import": "./dist/locale/ko.js"
+    },
+    "./locale/ku": {
+      "import": "./dist/locale/ku.js"
+    },
+    "./locale/ky": {
+      "import": "./dist/locale/ky.js"
+    },
+    "./locale/lb": {
+      "import": "./dist/locale/lb.js"
+    },
+    "./locale/lo": {
+      "import": "./dist/locale/lo.js"
+    },
+    "./locale/lt": {
+      "import": "./dist/locale/lt.js"
+    },
+    "./locale/lv": {
+      "import": "./dist/locale/lv.js"
+    },
+    "./locale/me": {
+      "import": "./dist/locale/me.js"
+    },
+    "./locale/mi": {
+      "import": "./dist/locale/mi.js"
+    },
+    "./locale/mk": {
+      "import": "./dist/locale/mk.js"
+    },
+    "./locale/ml": {
+      "import": "./dist/locale/ml.js"
+    },
+    "./locale/mn": {
+      "import": "./dist/locale/mn.js"
+    },
+    "./locale/mr": {
+      "import": "./dist/locale/mr.js"
+    },
+    "./locale/ms": {
+      "import": "./dist/locale/ms.js"
+    },
+    "./locale/ms-my": {
+      "import": "./dist/locale/ms-my.js"
+    },
+    "./locale/mt": {
+      "import": "./dist/locale/mt.js"
+    },
+    "./locale/my": {
+      "import": "./dist/locale/my.js"
+    },
+    "./locale/nb": {
+      "import": "./dist/locale/nb.js"
+    },
+    "./locale/ne": {
+      "import": "./dist/locale/ne.js"
+    },
+    "./locale/nl": {
+      "import": "./dist/locale/nl.js"
+    },
+    "./locale/nl-be": {
+      "import": "./dist/locale/nl-be.js"
+    },
+    "./locale/nn": {
+      "import": "./dist/locale/nn.js"
+    },
+    "./locale/oc-lnc": {
+      "import": "./dist/locale/oc-lnc.js"
+    },
+    "./locale/pa-in": {
+      "import": "./dist/locale/pa-in.js"
+    },
+    "./locale/pl": {
+      "import": "./dist/locale/pl.js"
+    },
+    "./locale/pt": {
+      "import": "./dist/locale/pt.js"
+    },
+    "./locale/pt-br": {
+      "import": "./dist/locale/pt-br.js"
+    },
+    "./locale/rn": {
+      "import": "./dist/locale/rn.js"
+    },
+    "./locale/ro": {
+      "import": "./dist/locale/ro.js"
+    },
+    "./locale/ru": {
+      "import": "./dist/locale/ru.js"
+    },
+    "./locale/rw": {
+      "import": "./dist/locale/rw.js"
+    },
+    "./locale/sd": {
+      "import": "./dist/locale/sd.js"
+    },
+    "./locale/se": {
+      "import": "./dist/locale/se.js"
+    },
+    "./locale/si": {
+      "import": "./dist/locale/si.js"
+    },
+    "./locale/sk": {
+      "import": "./dist/locale/sk.js"
+    },
+    "./locale/sl": {
+      "import": "./dist/locale/sl.js"
+    },
+    "./locale/sq": {
+      "import": "./dist/locale/sq.js"
+    },
+    "./locale/sr": {
+      "import": "./dist/locale/sr.js"
+    },
+    "./locale/sr-cyrl": {
+      "import": "./dist/locale/sr-cyrl.js"
+    },
+    "./locale/ss": {
+      "import": "./dist/locale/ss.js"
+    },
+    "./locale/sv": {
+      "import": "./dist/locale/sv.js"
+    },
+    "./locale/sv-fi": {
+      "import": "./dist/locale/sv-fi.js"
+    },
+    "./locale/sw": {
+      "import": "./dist/locale/sw.js"
+    },
+    "./locale/ta": {
+      "import": "./dist/locale/ta.js"
+    },
+    "./locale/te": {
+      "import": "./dist/locale/te.js"
+    },
+    "./locale/tet": {
+      "import": "./dist/locale/tet.js"
+    },
+    "./locale/tg": {
+      "import": "./dist/locale/tg.js"
+    },
+    "./locale/th": {
+      "import": "./dist/locale/th.js"
+    },
+    "./locale/tk": {
+      "import": "./dist/locale/tk.js"
+    },
+    "./locale/tl-ph": {
+      "import": "./dist/locale/tl-ph.js"
+    },
+    "./locale/tlh": {
+      "import": "./dist/locale/tlh.js"
+    },
+    "./locale/tr": {
+      "import": "./dist/locale/tr.js"
+    },
+    "./locale/tzl": {
+      "import": "./dist/locale/tzl.js"
+    },
+    "./locale/tzm": {
+      "import": "./dist/locale/tzm.js"
+    },
+    "./locale/tzm-latn": {
+      "import": "./dist/locale/tzm-latn.js"
+    },
+    "./locale/ug-cn": {
+      "import": "./dist/locale/ug-cn.js"
+    },
+    "./locale/uk": {
+      "import": "./dist/locale/uk.js"
+    },
+    "./locale/ur": {
+      "import": "./dist/locale/ur.js"
+    },
+    "./locale/uz": {
+      "import": "./dist/locale/uz.js"
+    },
+    "./locale/uz-latn": {
+      "import": "./dist/locale/uz-latn.js"
+    },
+    "./locale/vi": {
+      "import": "./dist/locale/vi.js"
+    },
+    "./locale/x-pseudo": {
+      "import": "./dist/locale/x-pseudo.js"
+    },
+    "./locale/yo": {
+      "import": "./dist/locale/yo.js"
+    },
+    "./locale/zh": {
+      "import": "./dist/locale/zh.js"
+    },
+    "./locale/zh-cn": {
+      "import": "./dist/locale/zh-cn.js"
+    },
+    "./locale/zh-hk": {
+      "import": "./dist/locale/zh-hk.js"
+    },
+    "./locale/zh-tw": {
+      "import": "./dist/locale/zh-tw.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts"
+}
