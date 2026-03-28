@@ -127,6 +127,151 @@ describe('type declarations', () => {
     const indexDts = readFileSync(resolve(distDir, 'index.d.ts'), 'utf8');
     expect(indexDts).not.toContain("dayjs/esm");
   });
+
+  it('should use export default instead of export = in index.d.ts', async () => {
+    const { readFileSync } = await import('node:fs');
+    const indexDts = readFileSync(resolve(distDir, 'index.d.ts'), 'utf8');
+    expect(indexDts).toContain('export default dayjs');
+    expect(indexDts).not.toContain('export = dayjs');
+  });
+
+  it('should have DayjsStatic interface in index.d.ts', async () => {
+    const { readFileSync } = await import('node:fs');
+    const indexDts = readFileSync(resolve(distDir, 'index.d.ts'), 'utf8');
+    expect(indexDts).toContain('export interface DayjsStatic {');
+    expect(indexDts).toContain('declare const dayjs: DayjsStatic');
+  });
+
+  it('should have export interface Dayjs {} merge point in index.d.ts', async () => {
+    const { readFileSync } = await import('node:fs');
+    const indexDts = readFileSync(resolve(distDir, 'index.d.ts'), 'utf8');
+    expect(indexDts).toContain('export interface Dayjs {}');
+  });
+
+  it('should not have declare namespace dayjs in index.d.ts', async () => {
+    const { readFileSync } = await import('node:fs');
+    const indexDts = readFileSync(resolve(distDir, 'index.d.ts'), 'utf8');
+    expect(indexDts).not.toContain('declare namespace dayjs');
+  });
+
+  it('should use DayjsStatic in PluginFunc instead of typeof dayjs', async () => {
+    const { readFileSync } = await import('node:fs');
+    const indexDts = readFileSync(resolve(distDir, 'index.d.ts'), 'utf8');
+    expect(indexDts).toMatch(/PluginFunc.*DayjsStatic/);
+    expect(indexDts).not.toContain('typeof dayjs');
+  });
+
+  it('should have call signatures in DayjsStatic', async () => {
+    const { readFileSync } = await import('node:fs');
+    const indexDts = readFileSync(resolve(distDir, 'index.d.ts'), 'utf8');
+    // Extract DayjsStatic block
+    const match = indexDts.match(/export interface DayjsStatic \{[\s\S]*?\n\}/);
+    expect(match).not.toBeNull();
+    const staticBlock = match[0];
+    expect(staticBlock).toContain('(date?: ConfigType): Dayjs');
+    expect(staticBlock).toContain('extend');
+    expect(staticBlock).toContain('locale');
+    expect(staticBlock).toContain('isDayjs');
+    expect(staticBlock).toContain('unix');
+    expect(staticBlock).toContain('readonly Ls');
+  });
+
+  it('should use export default plugin in plugin .d.ts files', async () => {
+    const { readFileSync } = await import('node:fs');
+    const plugins = ['utc', 'duration', 'timezone', 'relativeTime', 'advancedFormat', 'isBetween'];
+    for (const name of plugins) {
+      const dts = readFileSync(resolve(distDir, 'plugin', name, 'index.d.ts'), 'utf8');
+      expect(dts).toContain('export default plugin');
+      expect(dts).not.toContain('export = plugin');
+    }
+  });
+
+  it('should not have export as namespace in duration plugin', async () => {
+    const { readFileSync } = await import('node:fs');
+    const dts = readFileSync(resolve(distDir, 'plugin', 'duration', 'index.d.ts'), 'utf8');
+    expect(dts).not.toContain('export as namespace');
+  });
+
+  it('should move export function to DayjsStatic in plugin .d.ts (Pattern G)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const utcDts = readFileSync(resolve(distDir, 'plugin', 'utc', 'index.d.ts'), 'utf8');
+    expect(utcDts).toContain('interface DayjsStatic');
+    expect(utcDts).not.toMatch(/export\s+function\s+utc/);
+    // utc should be a method in DayjsStatic
+    const match = utcDts.match(/interface DayjsStatic \{[\s\S]*?\n\s*\}/);
+    expect(match).not.toBeNull();
+    expect(match[0]).toContain('utc(');
+  });
+
+  it('should move export const to readonly in DayjsStatic in plugin .d.ts (Pattern H)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const durationDts = readFileSync(resolve(distDir, 'plugin', 'duration', 'index.d.ts'), 'utf8');
+    expect(durationDts).toContain('interface DayjsStatic');
+    expect(durationDts).not.toMatch(/export\s+const\s+duration/);
+    const match = durationDts.match(/interface DayjsStatic \{[\s\S]*?\n\s*\}/);
+    expect(match).not.toBeNull();
+    expect(match[0]).toContain('readonly duration');
+  });
+
+  it('should move unexported const to readonly in DayjsStatic in plugin .d.ts (Pattern I)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const tzDts = readFileSync(resolve(distDir, 'plugin', 'timezone', 'index.d.ts'), 'utf8');
+    expect(tzDts).toContain('interface DayjsStatic');
+    // tz should be a readonly property in DayjsStatic, not a bare const
+    expect(tzDts).not.toMatch(/^\s*const tz/m);
+    const match = tzDts.match(/interface DayjsStatic \{[\s\S]*?\n\s*\}/);
+    expect(match).not.toBeNull();
+    expect(match[0]).toContain('readonly tz: DayjsTimezone');
+  });
+
+  it('should preserve interface Dayjs augmentation in plugins (Pattern D)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const utcDts = readFileSync(resolve(distDir, 'plugin', 'utc', 'index.d.ts'), 'utf8');
+    expect(utcDts).toContain('interface Dayjs {');
+    // Instance methods should still be inside interface Dayjs
+    const dayjsMatch = utcDts.match(/interface Dayjs \{[\s\S]*?\n\s*\}/);
+    expect(dayjsMatch).not.toBeNull();
+    expect(dayjsMatch[0]).toContain('utc(keepLocalTime');
+    expect(dayjsMatch[0]).toContain('local()');
+    expect(dayjsMatch[0]).toContain('isUTC()');
+  });
+
+  it('should preserve non-Dayjs interfaces in plugins (Pattern E)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const tzDts = readFileSync(resolve(distDir, 'plugin', 'timezone', 'index.d.ts'), 'utf8');
+    expect(tzDts).toContain('interface DayjsTimezone {');
+    const localeDts = readFileSync(resolve(distDir, 'plugin', 'localeData', 'index.d.ts'), 'utf8');
+    expect(localeDts).toContain('interface InstanceLocaleDataReturn {');
+    expect(localeDts).toContain('interface GlobalLocaleDataReturn {');
+  });
+
+  it('should preserve ConfigTypeMap augmentation in plugins (Pattern F)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const arraySupportDts = readFileSync(resolve(distDir, 'plugin', 'arraySupport', 'index.d.ts'), 'utf8');
+    expect(arraySupportDts).toContain('interface ConfigTypeMap {');
+  });
+
+  it('should preserve declare namespace plugin in duration (Pattern C)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const durationDts = readFileSync(resolve(distDir, 'plugin', 'duration', 'index.d.ts'), 'utf8');
+    expect(durationDts).toContain('declare namespace plugin {');
+    expect(durationDts).toContain('interface Duration {');
+  });
+
+  it('should export types at module level in index.d.ts', async () => {
+    const { readFileSync } = await import('node:fs');
+    const indexDts = readFileSync(resolve(distDir, 'index.d.ts'), 'utf8');
+    expect(indexDts).toContain('export type ConfigType');
+    expect(indexDts).toContain('export interface ConfigTypeMap');
+    expect(indexDts).toContain('export interface FormatObject');
+    expect(indexDts).toContain('export type OptionType');
+    expect(indexDts).toContain('export type UnitType');
+    expect(indexDts).toContain('export type OpUnitType');
+    expect(indexDts).toContain('export type QUnitType');
+    expect(indexDts).toContain('export type ManipulateType');
+    expect(indexDts).toContain('export type PluginFunc');
+    expect(indexDts).toContain('export class Dayjs');
+  });
 });
 
 describe('exports map', () => {
