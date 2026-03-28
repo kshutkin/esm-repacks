@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, existsSync, copyFileSync, statSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Project, SyntaxKind } from 'ts-morph';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgDir = resolve(__dirname, '..');
@@ -39,145 +40,50 @@ function rewriteModuleNames(content) {
 }
 
 // ---------------------------------------------------------------------------
-// Brace-counting utilities
+// ts-morph helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Count net braces in a line (ignoring braces inside string literals and comments).
- * This is intentionally simple — sufficient for the well-structured .d.ts files we handle.
+ * Create a throwaway ts-morph source file for AST-based parsing.
  */
-function countBraces(line) {
-  let open = 0;
-  let close = 0;
-  let inString = false;
-  let stringChar = '';
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (inString) {
-      if (ch === '\\') { i++; continue; }
-      if (ch === stringChar) inString = false;
-      continue;
-    }
-    if (ch === "'" || ch === '"' || ch === '`') {
-      inString = true;
-      stringChar = ch;
-      continue;
-    }
-    // Skip single-line comments
-    if (ch === '/' && i + 1 < line.length && line[i + 1] === '/') break;
-    if (ch === '{') open++;
-    if (ch === '}') close++;
-  }
-  return { open, close, net: open - close };
+function parseSource(content, fileName = '__input.d.ts') {
+  const project = new Project({ useInMemoryFileSystem: true });
+  return project.createSourceFile(fileName, content);
 }
 
 /**
- * Starting from `startIdx` (a line that opens a block with `{`), find the index of
- * the line containing the matching `}`. Returns the end index (inclusive).
- * `initialDepth` is the brace depth BEFORE processing `startIdx`.
- */
-function findMatchingClose(lines, startIdx, initialDepth = 0) {
-  let depth = initialDepth;
-  for (let i = startIdx; i < lines.length; i++) {
-    const { net } = countBraces(lines[i]);
-    depth += net;
-    if (depth <= 0) return i;
-  }
-  return lines.length - 1; // fallback
-}
-
-/**
- * Parse a block body (between outer braces) into top-level "chunks".
- * Each chunk is a contiguous set of lines forming one declaration at depth-0
- * relative to the enclosing block (comments/jsdoc preceding it are included).
+ * Map each statement inside a block (namespace / module) to its chunk of
+ * source lines.  Lines between the end of the previous statement and the end
+ * of the current one are grouped together, so leading blank lines / JSDoc
+ * comments are naturally captured – mirroring the old `parseChunks` behaviour.
  *
- * `bodyLines` should be the lines between (but not including) the opening and
- * closing brace lines.
+ * `bodyStartLine` is the 0-based line index of the first body line (the line
+ * immediately after the opening `{`).
  */
-function parseChunks(bodyLines) {
+function statementsToChunks(statements, allLines, bodyStartLine) {
   const chunks = [];
-  let current = [];
-  let depth = 0;
-  let pendingComments = [];
+  let prevEnd = bodyStartLine;
 
-  for (const line of bodyLines) {
-    const trimmed = line.trim();
+  for (const stmt of statements) {
+    const stmtEndIdx = stmt.getEndLineNumber() - 1; // 0-based, inclusive
+    const chunkLines = allLines.slice(prevEnd, stmtEndIdx + 1);
+    prevEnd = stmtEndIdx + 1;
 
-    // Accumulate blank lines and comment lines while at depth 0
-    if (depth === 0 && (trimmed === '' || trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/**'))) {
-      // If we're collecting a multi-line JSDoc/comment that started with /**, keep it in current
-      if (current.length > 0) {
-        current.push(line);
-      } else {
-        pendingComments.push(line);
-      }
-      continue;
-    }
+    const kind = stmt.getKind();
+    const isFunction = kind === SyntaxKind.FunctionDeclaration;
+    const isVariable = kind === SyntaxKind.VariableStatement;
+    const isClass = kind === SyntaxKind.ClassDeclaration;
+    const name = typeof stmt.getName === 'function' ? stmt.getName() : undefined;
 
-    const { net } = countBraces(line);
-    depth += net;
-
-    if (current.length === 0) {
-      // Start of a new chunk — prepend any accumulated comments
-      current = [...pendingComments, line];
-      pendingComments = [];
-    } else {
-      current.push(line);
-    }
-
-    if (depth <= 0) {
-      depth = 0;
-      chunks.push(current);
-      current = [];
-    }
-  }
-  if (current.length > 0) {
-    chunks.push(current);
+    chunks.push({
+      isStatic: isFunction || isVariable,
+      isFunction,
+      isClass,
+      name,
+      lines: chunkLines,
+    });
   }
   return chunks;
-}
-
-// ---------------------------------------------------------------------------
-// Classify a declaration chunk
-// ---------------------------------------------------------------------------
-
-/**
- * Returns the "kind" of a declaration chunk:
- *   'interface' | 'type' | 'class' | 'function' | 'const' | 'let' | 'var' | 'unknown'
- *
- * Skips leading blank lines, comments, JSDoc, `export`, and `declare` keywords.
- */
-function classifyChunk(chunkLines) {
-  for (const line of chunkLines) {
-    const trimmed = line.trim();
-    if (trimmed === '' || trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/**')) continue;
-
-    // Strip leading keywords: export, declare
-    const stripped = trimmed
-      .replace(/^export\s+/, '')
-      .replace(/^declare\s+/, '');
-
-    if (/^interface\s/.test(stripped)) return 'interface';
-    if (/^type\s/.test(stripped)) return 'type';
-    if (/^class\s/.test(stripped)) return 'class';
-    if (/^function\s/.test(stripped)) return 'function';
-    if (/^const\s/.test(stripped)) return 'const';
-    if (/^let\s/.test(stripped)) return 'let';
-    if (/^var\s/.test(stripped)) return 'var';
-    return 'unknown';
-  }
-  return 'unknown';
-}
-
-/**
- * For an interface chunk, return the interface name.
- */
-function getInterfaceName(chunkLines) {
-  for (const line of chunkLines) {
-    const m = line.match(/interface\s+(\w+)/);
-    if (m) return m[1];
-  }
-  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -185,60 +91,37 @@ function getInterfaceName(chunkLines) {
 // ---------------------------------------------------------------------------
 
 function transformIndexDts(content) {
+  const sf = parseSource(content, 'index.d.ts');
   const lines = content.split('\n');
 
   // 1. Collect reference lines
-  const referenceLines = [];
+  const referenceLines = lines.filter(l => l.trim().startsWith('///'));
+
   // 2. Collect declare function dayjs(...) overloads
   const callSignatureLines = [];
-  // 3. Find namespace body
-  let namespaceStart = -1;
-  let namespaceEnd = -1;
-
-  // First pass: identify sections
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim();
-    if (trimmed.startsWith('///')) {
-      referenceLines.push(lines[i]);
-      continue;
-    }
-    if (trimmed === 'export = dayjs;' || trimmed === 'export = dayjs') {
-      continue; // skip
-    }
-    if (/^declare\s+function\s+dayjs\s*[\(<]/.test(trimmed) || /^declare\s+function\s+dayjs\s*$/.test(trimmed)) {
-      callSignatureLines.push(lines[i]);
-      continue;
-    }
-    if (/^declare\s+namespace\s+dayjs\s*\{/.test(trimmed)) {
-      namespaceStart = i;
-      namespaceEnd = findMatchingClose(lines, i, 0);
-      break;
+  for (const func of sf.getFunctions()) {
+    if (func.getName() === 'dayjs') {
+      const start = func.getStartLineNumber() - 1;
+      const end = func.getEndLineNumber() - 1;
+      for (let i = start; i <= end; i++) {
+        callSignatureLines.push(lines[i]);
+      }
     }
   }
 
-  if (namespaceStart === -1) {
+  // 3. Find namespace body
+  const ns = sf.getModule('dayjs');
+  if (!ns) {
     // No namespace found, return content with just export = replaced
     return content.replace(/export\s*=\s*dayjs\s*;?/, 'export default dayjs;');
   }
 
-  // 2. Extract namespace body lines (between opening { and closing })
-  const bodyLines = lines.slice(namespaceStart + 1, namespaceEnd);
+  const nsStartIdx = ns.getStartLineNumber() - 1;
 
-  // 3. Parse body into chunks
-  const chunks = parseChunks(bodyLines);
-
-  // 4. Classify chunks
-  const typeChunks = [];   // go to module level
-  const staticChunks = []; // go into DayjsStatic
-
-  for (const chunk of chunks) {
-    const kind = classifyChunk(chunk);
-    if (kind === 'function' || kind === 'const' || kind === 'let' || kind === 'var') {
-      staticChunks.push({ kind, lines: chunk });
-    } else {
-      typeChunks.push({ kind, lines: chunk });
-    }
-  }
+  // 4. Classify namespace members into type-level vs static chunks
+  const chunks = statementsToChunks(ns.getStatements(), lines, nsStartIdx + 1);
+  const typeChunks = chunks.filter(c => !c.isStatic);
+  const staticChunks = chunks.filter(c => c.isStatic);
 
   // 5. Build output
   const out = [];
@@ -274,7 +157,7 @@ function transformIndexDts(content) {
       out.push(transformed);
     }
     // After class Dayjs, add the empty interface merge point for plugin augmentation
-    if (chunk.kind === 'class' && chunk.lines.some(l => /class\s+Dayjs\b/.test(l))) {
+    if (chunk.isClass && chunk.name === 'Dayjs') {
       out.push('export interface Dayjs {}');
     }
     out.push('');
@@ -301,7 +184,6 @@ function transformIndexDts(content) {
 
   // Add static method/property signatures from namespace
   for (const chunk of staticChunks) {
-    const { kind } = chunk;
     for (const line of chunk.lines) {
       const trimmed = line.trim();
       if (trimmed === '' || trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/**')) {
@@ -312,7 +194,7 @@ function transformIndexDts(content) {
 
       let transformed = trimmed;
 
-      if (kind === 'function') {
+      if (chunk.isFunction) {
         // Convert: export function extend<T = unknown>(plugin: PluginFunc<T>, option?: T): Dayjs
         //      To: extend<T = unknown>(plugin: PluginFunc<T>, option?: T): DayjsStatic;
         transformed = transformed
@@ -367,95 +249,89 @@ function transformPluginDts(content) {
 
 /**
  * Find and transform all `declare module '@esm-repacks/dayjs' { ... }` blocks
- * in a plugin .d.ts file.
+ * in a plugin .d.ts file.  Functions and variables inside these blocks are
+ * moved into a `DayjsStatic` interface; everything else (interfaces, types)
+ * is kept in place.
  */
 function transformDeclareModuleBlocks(content) {
+  const sf = parseSource(content, '__plugin.d.ts');
   const lines = content.split('\n');
   const result = [];
-  let i = 0;
+  let processedUpTo = 0; // 0-based line index
 
-  while (i < lines.length) {
-    const trimmed = lines[i].trim();
+  for (const mod of sf.getModules()) {
+    const name = mod.getName();
+    // Only process declare module '@esm-repacks/dayjs' blocks
+    if (name !== "'@esm-repacks/dayjs'" && name !== '"@esm-repacks/dayjs"') continue;
 
-    // Check for declare module '@esm-repacks/dayjs' {
-    if (/^declare\s+module\s+['"]@esm-repacks\/dayjs['"]\s*\{/.test(trimmed)) {
-      const blockStart = i;
-      const blockEnd = findMatchingClose(lines, i, 0);
+    const modStartIdx = mod.getStartLineNumber() - 1;
+    const modEndIdx = mod.getEndLineNumber() - 1;
 
-      // Extract body lines (between opening { and closing })
-      const bodyLines = lines.slice(blockStart + 1, blockEnd);
-
-      // Parse into chunks
-      const chunks = parseChunks(bodyLines);
-
-      // Classify chunks
-      const keepChunks = [];   // interfaces, types — stay as-is
-      const staticMembers = []; // functions, const/let → DayjsStatic members
-
-      for (const chunk of chunks) {
-        const kind = classifyChunk(chunk);
-        if (kind === 'function' || kind === 'const' || kind === 'let' || kind === 'var') {
-          staticMembers.push({ kind, lines: chunk });
-        } else {
-          keepChunks.push(chunk);
-        }
-      }
-
-      // Rebuild the declare module block
-      result.push(lines[blockStart]); // declare module '...' {
-
-      for (const chunk of keepChunks) {
-        for (const line of chunk) {
-          result.push(line);
-        }
-      }
-
-      if (staticMembers.length > 0) {
-        result.push('  interface DayjsStatic {');
-
-        for (const member of staticMembers) {
-          const { kind } = member;
-          for (const line of member.lines) {
-            const trimmedLine = line.trim();
-            if (trimmedLine === '' || trimmedLine.startsWith('//') || trimmedLine.startsWith('*') || trimmedLine.startsWith('/**')) {
-              // Re-indent comments/blanks for DayjsStatic body inside declare module
-              result.push(trimmedLine === '' ? '' : '    ' + trimmedLine);
-              continue;
-            }
-
-            let transformed = trimmedLine;
-
-            if (kind === 'function') {
-              // export function utc(config?: ConfigType, format?: string, strict?: boolean): Dayjs;
-              // → utc(config?: ConfigType, format?: string, strict?: boolean): Dayjs;
-              transformed = transformed
-                .replace(/^export\s+/, '')
-                .replace(/^function\s+/, '');
-              if (!transformed.endsWith(';')) transformed += ';';
-            } else {
-              // export const duration: plugin.CreateDurationType;
-              // → readonly duration: plugin.CreateDurationType;
-              // Also handle: const tz: DayjsTimezone (no export)
-              transformed = transformed
-                .replace(/^export\s+/, '')
-                .replace(/^(const|let|var)\s+/, 'readonly ');
-              if (!transformed.endsWith(';')) transformed += ';';
-            }
-
-            result.push('    ' + transformed);
-          }
-        }
-
-        result.push('  }');
-      }
-
-      result.push(lines[blockEnd]); // closing }
-
-      i = blockEnd + 1;
-    } else {
+    // Copy lines before this module block
+    for (let i = processedUpTo; i < modStartIdx; i++) {
       result.push(lines[i]);
-      i++;
     }
+
+    // Classify module statements
+    const chunks = statementsToChunks(mod.getStatements(), lines, modStartIdx + 1);
+    const keepChunks = chunks.filter(c => !c.isStatic);
+    const staticMembers = chunks.filter(c => c.isStatic);
+
+    // Rebuild the declare module block
+    result.push(lines[modStartIdx]); // declare module '...' {
+
+    for (const chunk of keepChunks) {
+      for (const line of chunk.lines) {
+        result.push(line);
+      }
+    }
+
+    if (staticMembers.length > 0) {
+      result.push('  interface DayjsStatic {');
+
+      for (const member of staticMembers) {
+        for (const line of member.lines) {
+          const trimmedLine = line.trim();
+          if (trimmedLine === '' || trimmedLine.startsWith('//') || trimmedLine.startsWith('*') || trimmedLine.startsWith('/**')) {
+            // Re-indent comments/blanks for DayjsStatic body inside declare module
+            result.push(trimmedLine === '' ? '' : '    ' + trimmedLine);
+            continue;
+          }
+
+          let transformed = trimmedLine;
+
+          if (member.isFunction) {
+            // export function utc(config?: ConfigType, format?: string, strict?: boolean): Dayjs;
+            // → utc(config?: ConfigType, format?: string, strict?: boolean): Dayjs;
+            transformed = transformed
+              .replace(/^export\s+/, '')
+              .replace(/^function\s+/, '');
+            if (!transformed.endsWith(';')) transformed += ';';
+          } else {
+            // export const duration: plugin.CreateDurationType;
+            // → readonly duration: plugin.CreateDurationType;
+            // Also handle: const tz: DayjsTimezone (no export)
+            transformed = transformed
+              .replace(/^export\s+/, '')
+              .replace(/^(const|let|var)\s+/, 'readonly ');
+            if (!transformed.endsWith(';')) transformed += ';';
+          }
+
+          result.push('    ' + transformed);
+        }
+      }
+
+      result.push('  }');
+    }
+
+    result.push(lines[modEndIdx]); // closing }
+
+    processedUpTo = modEndIdx + 1;
+  }
+
+  // Copy remaining lines
+  for (let i = processedUpTo; i < lines.length; i++) {
+    result.push(lines[i]);
   }
 
   return result.join('\n');
