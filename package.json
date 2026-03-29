@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "devDependencies": {
+    "@changesets/cli": "^2.29.4"
+  },
+  "scripts": {
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test"
+  }
+}

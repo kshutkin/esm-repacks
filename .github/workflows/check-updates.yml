@@ -1,0 +1,59 @@
+name: Check for dayjs updates
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Get current version
+        id: current
+        run: |
+          CURRENT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('packages/dayjs/package.json','utf8')).version)")
+          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+
+      - name: Get latest dayjs version
+        id: latest
+        run: |
+          LATEST=$(npm view dayjs version)
+          echo "version=$LATEST" >> $GITHUB_OUTPUT
+
+      - name: Compare versions
+        id: compare
+        run: |
+          if [ "${{ steps.current.outputs.version }}" != "${{ steps.latest.outputs.version }}" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "New dayjs version available: ${{ steps.latest.outputs.version }} (current: ${{ steps.current.outputs.version }})"
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "dayjs is up to date: ${{ steps.current.outputs.version }}"
+          fi
+
+      - name: Trigger repack
+        if: steps.compare.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'repack.yml',
+              ref: 'main',
+              inputs: {
+                dayjs_version: '${{ steps.latest.outputs.version }}'
+              }
+            });

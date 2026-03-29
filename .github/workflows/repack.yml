@@ -1,0 +1,88 @@
+name: Repack
+
+on:
+  workflow_dispatch:
+    inputs:
+      dayjs_version:
+        description: 'dayjs version to repack (e.g. 1.11.13)'
+        required: false
+        default: 'latest'
+
+jobs:
+  repack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Update dayjs
+        run: |
+          VERSION="${{ github.event.inputs.dayjs_version }}"
+          if [ "$VERSION" = "latest" ] || [ -z "$VERSION" ]; then
+            pnpm -C packages/dayjs add -D dayjs@latest
+          else
+            pnpm -C packages/dayjs add -D "dayjs@${VERSION}"
+          fi
+
+      - name: Build
+        run: pnpm -C packages/dayjs run build
+
+      - name: Test
+        run: pnpm -C packages/dayjs run test
+
+      - name: Get new version
+        id: version
+        run: |
+          VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('packages/dayjs/package.json','utf8')).version)")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Determine bump type
+        id: bump
+        run: |
+          OLD_VERSION=$(git show HEAD:packages/dayjs/package.json | node -e "process.stdin.on('data',d=>console.log(JSON.parse(d).version))" 2>/dev/null || echo "0.0.0")
+          NEW_VERSION="${{ steps.version.outputs.version }}"
+          OLD_MINOR=$(echo "$OLD_VERSION" | cut -d. -f1,2)
+          NEW_MINOR=$(echo "$NEW_VERSION" | cut -d. -f1,2)
+          if [ "$OLD_MINOR" != "$NEW_MINOR" ]; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+          else
+            echo "type=patch" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create changeset
+        run: |
+          BUMP="${{ steps.bump.outputs.type }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          cat > ".changeset/update-dayjs-${VERSION}.md" << EOF
+          ---
+          "@esm-repacks/dayjs": ${BUMP}
+          ---
+
+          Update dayjs to ${VERSION}
+          EOF
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: repack dayjs ${{ steps.version.outputs.version }}"
+          title: "chore: repack dayjs ${{ steps.version.outputs.version }}"
+          body: |
+            Automated repack of dayjs to version ${{ steps.version.outputs.version }}.
+
+            - Updated dayjs dependency
+            - Rebuilt dist/ with new ESM files
+            - All tests passing
+          branch: "repack/dayjs-${{ steps.version.outputs.version }}"
+          delete-branch: true
