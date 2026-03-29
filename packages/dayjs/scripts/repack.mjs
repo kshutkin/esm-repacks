@@ -20,6 +20,176 @@ function copyAndTransformJs(src, dest) {
   writeFileSync(dest, content, 'utf8');
 }
 
+// ---------------------------------------------------------------------------
+// Transform: Babel IIFE classes → real ES classes
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect whether a VariableStatement is a Babel-transpiled IIFE class of the
+ * form:
+ *
+ *     var Name = / *#__PURE__* /function () {
+ *       function Name(a) { … }
+ *       var _proto = Name.prototype;
+ *       _proto.method = function method() { … };
+ *       return Name;
+ *     }();
+ *
+ * Returns `{ className, funcExpr }` when the pattern matches, or `null`.
+ */
+function detectIIFEClass(stmt) {
+  if (stmt.getKind() !== SyntaxKind.VariableStatement) return null;
+
+  const decl = stmt.getDeclarationList().getDeclarations()[0];
+  if (!decl) return null;
+
+  const init = decl.getInitializer();
+  if (!init || init.getKind() !== SyntaxKind.CallExpression) return null;
+
+  const expr = init.getExpression();
+  // The function may be wrapped in parentheses: (function () { … })()
+  const inner =
+    expr.getKind() === SyntaxKind.ParenthesizedExpression
+      ? expr.getExpression()
+      : expr;
+  if (inner.getKind() !== SyntaxKind.FunctionExpression) return null;
+
+  const className = decl.getName();
+
+  // Verify: the IIFE body must contain a FunctionDeclaration with the same
+  // name (the inner constructor) and a ReturnStatement that returns it.
+  const bodyStmts = inner.getBody().getStatements();
+  const hasCtor = bodyStmts.some(
+    s => s.getKind() === SyntaxKind.FunctionDeclaration && s.getName() === className,
+  );
+  const hasReturn = bodyStmts.some(
+    s => s.getKind() === SyntaxKind.ReturnStatement,
+  );
+  if (!hasCtor || !hasReturn) return null;
+
+  return { className, funcExpr: inner };
+}
+
+/**
+ * Given a `_proto.X = function X(…) { … };` ExpressionStatement, extract the
+ * method name, parameter list text, and body text.  Returns `null` when the
+ * statement does not match the pattern.
+ */
+function extractProtoMethod(exprStmt) {
+  if (exprStmt.getKind() !== SyntaxKind.ExpressionStatement) return null;
+
+  const expr = exprStmt.getExpression();
+  if (expr.getKind() !== SyntaxKind.BinaryExpression) return null;
+
+  const left = expr.getLeft();
+  const right = expr.getRight();
+
+  if (left.getKind() !== SyntaxKind.PropertyAccessExpression) return null;
+  if (left.getExpression().getText() !== '_proto') return null;
+  if (right.getKind() !== SyntaxKind.FunctionExpression) return null;
+
+  const methodName = left.getName();
+  const params = right.getParameters().map(p => p.getText()).join(', ');
+  const bodyText = right.getBody().getText(); // includes { … }
+
+  return { methodName, params, bodyText };
+}
+
+/**
+ * Convert every Babel IIFE class found in `content` to a real ES `class`.
+ *
+ * Plugins that patch `Dayjs.prototype` at runtime still work because ES class
+ * methods live on the prototype and can be overridden by assignment.
+ */
+function transformIIFEToClass(content) {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { allowJs: true } });
+  const sf = project.createSourceFile('__iife.js', content);
+  const lines = content.split('\n');
+
+  // Collect replacements (as line ranges → new text) so we can apply them
+  // back-to-front without shifting indices.
+  const replacements = []; // { startLine, endLine, text }
+
+  for (const stmt of sf.getStatements()) {
+    const match = detectIIFEClass(stmt);
+    if (!match) continue;
+
+    const { className, funcExpr } = match;
+    const bodyStmts = funcExpr.getBody().getStatements();
+
+    // Build the class source
+    const out = [];
+    out.push(`class ${className} {`);
+
+    for (const s of bodyStmts) {
+      const kind = s.getKind();
+
+      // ── Constructor: function ClassName(…) { … } ────────────────────
+      if (kind === SyntaxKind.FunctionDeclaration && s.getName() === className) {
+        const params = s.getParameters().map(p => p.getText()).join(', ');
+        const bodyText = s.getBody().getText();
+        out.push(`  constructor(${params}) ${bodyText}`);
+        continue;
+      }
+
+      // ── Prototype alias: var _proto = ClassName.prototype; ──────────
+      if (kind === SyntaxKind.VariableStatement) {
+        // skip entirely
+        continue;
+      }
+
+      // ── Return statement (end of IIFE) ──────────────────────────────
+      if (kind === SyntaxKind.ReturnStatement) {
+        continue;
+      }
+
+      // ── Prototype method: _proto.X = function X(…) { … }; ──────────
+      const method = extractProtoMethod(s);
+      if (method) {
+        // Preserve leading comments that belong to this statement.
+        // getFullText() includes leading trivia; getText() does not.
+        const fullText = s.getFullText();
+        const text = s.getText();
+        const trivia = fullText.slice(0, fullText.length - text.length);
+        // Extract only comment lines from the trivia (skip blank lines
+        // that merely separated the old `};` from the next `_proto.…`).
+        const triviaLines = trivia.split('\n');
+        const commentLines = triviaLines.filter(l => {
+          const t = l.trim();
+          return t.startsWith('//') || t.startsWith('/*') || t.startsWith('*');
+        });
+        if (commentLines.length) {
+          out.push('');
+          for (const cl of commentLines) out.push(cl);
+        }
+        out.push('');
+        out.push(`  ${method.methodName}(${method.params}) ${method.bodyText}`);
+        continue;
+      }
+
+      // ── Anything else: emit as-is (shouldn't happen for Babel IIFE) ─
+      out.push(s.getText());
+    }
+
+    out.push('}');
+
+    replacements.push({
+      startLine: stmt.getStartLineNumber(),
+      endLine: stmt.getEndLineNumber(),
+      text: out.join('\n'),
+    });
+  }
+
+  if (replacements.length === 0) return content;
+
+  // Apply replacements back-to-front
+  const result = [...lines];
+  for (const r of replacements.reverse()) {
+    result.splice(r.startLine - 1, r.endLine - r.startLine + 1, r.text);
+  }
+  return result.join('\n');
+}
+
 /**
  * Rewrite module names from dayjs/dayjs/esm to @esm-repacks/dayjs
  */
@@ -403,11 +573,16 @@ console.log(`📦 dayjs version: ${dayjsVersion}`);
 
 // 3. Copy core ESM files
 ensureDir(distDir);
-const coreFiles = ['index.js', 'constant.js', 'utils.js'];
-for (const file of coreFiles) {
+for (const file of ['constant.js', 'utils.js']) {
   copyAndTransformJs(join(dayjsEsmDir, file), join(distDir, file));
 }
-console.log(`✅ Copied core files: ${coreFiles.join(', ')}`);
+// Copy & transform index.js: convert Babel IIFE classes to real ES classes
+{
+  let indexContent = readFileSync(join(dayjsEsmDir, 'index.js'), 'utf8');
+  indexContent = transformIIFEToClass(indexContent);
+  writeFileSync(join(distDir, 'index.js'), indexContent, 'utf8');
+}
+console.log('✅ Copied and transformed core files');
 
 // 4. Copy core .d.ts
 // Use the ESM version of index.d.ts (it uses dayjs/esm references)

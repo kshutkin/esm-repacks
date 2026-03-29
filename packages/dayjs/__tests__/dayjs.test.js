@@ -34,6 +34,42 @@ describe('dayjs core', () => {
   });
 });
 
+describe('IIFE to class transform', () => {
+  it('should use real ES class syntax for Dayjs', async () => {
+    const { readFileSync } = await import('node:fs');
+    const indexJs = readFileSync(resolve(distDir, 'index.js'), 'utf8');
+    expect(indexJs).toContain('class Dayjs {');
+    expect(indexJs).not.toContain('var Dayjs = /*#__PURE__*/function ()');
+    expect(indexJs).not.toContain('var _proto = Dayjs.prototype');
+    expect(indexJs).not.toContain('_proto.');
+    expect(indexJs).toContain('constructor(cfg)');
+  });
+
+  it('should preserve Dayjs.prototype for plugin compatibility', async () => {
+    const { default: dayjs } = await import('@esm-repacks/dayjs');
+    const d = dayjs('2023-01-15');
+    // Dayjs.prototype is still accessible
+    const proto = Object.getPrototypeOf(d);
+    expect(typeof proto.format).toBe('function');
+    expect(typeof proto.add).toBe('function');
+    expect(typeof proto.subtract).toBe('function');
+  });
+
+  it('should allow plugins to override class methods via prototype', async () => {
+    const { default: dayjs } = await import('@esm-repacks/dayjs');
+    const { default: badMutable } = await import('@esm-repacks/dayjs/plugin/badMutable');
+    dayjs.extend(badMutable);
+    // badMutable overrides set, startOf, add, locale etc. to mutate in place
+    const d = dayjs('2023-06-15');
+    const original = d.format('YYYY-MM-DD');
+    expect(original).toBe('2023-06-15');
+    // With badMutable, add() mutates in place instead of returning a clone
+    const same = d.add(1, 'day');
+    expect(same).toBe(d); // same reference, mutated in place
+    expect(d.format('YYYY-MM-DD')).toBe('2023-06-16');
+  });
+});
+
 describe('plugins', () => {
   it('should import and use utc plugin', async () => {
     const { default: dayjs } = await import('@esm-repacks/dayjs');
