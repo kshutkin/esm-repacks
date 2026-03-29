@@ -11,7 +11,8 @@
   },
   "scripts": {
     "build": "node scripts/repack.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "pkgprn --flatten dist"
   },
   "files": [
     "dist"
@@ -19,7 +20,8 @@
   "devDependencies": {
     "dayjs": "^1.11.13",
     "ts-morph": "^27.0.2",
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0",
+    "pkgprn": "^0.8.0"
   },
   "exports": {
     ".": {
