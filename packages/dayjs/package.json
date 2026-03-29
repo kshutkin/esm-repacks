@@ -19,7 +19,7 @@
   "devDependencies": {
     "dayjs": "^1.11.13",
     "ts-morph": "^27.0.2",
-    "vitest": "^3.1.1"
+    "vitest": "^4.0.0"
   },
   "exports": {
     ".": {
