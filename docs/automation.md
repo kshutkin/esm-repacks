@@ -14,6 +14,8 @@ The project uses a three-workflow CI/CD pipeline to automatically detect, repack
 
 - Triggered manually or by `check-updates.yml`
 - Accepts `dayjs_version` input (default: `latest`)
+- Grants the job `contents: write` and `pull-requests: write` so its
+  `GITHUB_TOKEN` can push the repack branch and open the pull request
 - Steps:
   1. `pnpm -C packages/dayjs add -D dayjs@<version>` — updates the devDependency
   2. `pnpm -C packages/dayjs run build` — runs `scripts/repack.mjs` to rebuild `dist/`
