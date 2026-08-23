@@ -1,6 +1,6 @@
 {
   "name": "@esm-repacks/dayjs",
-  "version": "1.11.22",
+  "version": "1.11.23",
   "description": "Proper ESM repack of dayjs with subpath exports for plugins and locales",
   "type": "module",
   "license": "MIT",
