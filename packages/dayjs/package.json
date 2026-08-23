@@ -1,6 +1,6 @@
 {
   "name": "@esm-repacks/dayjs",
-  "version": "1.11.20",
+  "version": "1.11.21",
   "description": "Proper ESM repack of dayjs with subpath exports for plugins and locales",
   "type": "module",
   "license": "MIT",
@@ -18,10 +18,10 @@
     "dist"
   ],
   "devDependencies": {
-    "dayjs": "^1.11.13",
+    "dayjs": "^1.11.21",
+    "pkgprn": "^0.8.0",
     "ts-morph": "^27.0.2",
-    "vitest": "^4.0.0",
-    "pkgprn": "^0.8.0"
+    "vitest": "^4.0.0"
   },
   "exports": {
     ".": {
