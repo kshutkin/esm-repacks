@@ -628,6 +628,7 @@ console.log(`✅ Copied locale type declarations`);
 // 9. Generate exports map and update package.json
 const pkgJsonPath = join(pkgDir, 'package.json');
 const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf8'));
+const previousVersion = pkg.version;
 
 const exports = {
   '.': {
@@ -654,6 +655,27 @@ for (const name of localeNames) {
   exports[`./locale/${name}`] = {
     import: `./dist/locale/${name}.js`
   };
+}
+
+if (previousVersion !== dayjsVersion) {
+  const changelogPath = join(pkgDir, 'CHANGELOG.md');
+  const changelog = readFileSync(changelogPath, 'utf8');
+  const title = `# ${pkg.name}`;
+  if (!changelog.startsWith(title)) {
+    throw new Error(`Expected ${changelogPath} to start with "${title}"`);
+  }
+
+  const [previousMajor, previousMinor] = previousVersion.split('.').map(Number);
+  const [nextMajor, nextMinor] = dayjsVersion.split('.').map(Number);
+  const changeType = previousMajor !== nextMajor
+    ? 'Major'
+    : previousMinor !== nextMinor
+      ? 'Minor'
+      : 'Patch';
+  const previousEntries = changelog.slice(title.length).replace(/^\n+/, '');
+  const entry = `## ${dayjsVersion}\n\n### ${changeType} Changes\n\n- Update dayjs to ${dayjsVersion}`;
+  writeFileSync(changelogPath, `${title}\n\n${entry}\n\n${previousEntries}`, 'utf8');
+  console.log(`✅ Updated CHANGELOG.md (${dayjsVersion})`);
 }
 
 pkg.version = dayjsVersion;

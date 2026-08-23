@@ -28,5 +28,5 @@ dayjs ships ESM files but does not expose them via `exports` in `package.json`. 
 ### Automation
 
 - A daily cron job checks for new dayjs releases on npm
-- When a new version is detected, an automated workflow builds, tests, and creates a PR
-- On merge, changesets handles versioning and publishing to npm
+- When a new version is detected, the workflow builds and tests the repack
+- The workflow mirrors the upstream version, commits directly to `main`, and publishes to npm

@@ -28,9 +28,9 @@ Each repack package:
 
 ## Versioning & Publishing
 
-- Uses [Changesets](https://github.com/changesets/changesets) for versioning and publishing
-- The repack automation creates a changeset file for each upstream update (minor bump if minor/major upstream change, patch otherwise)
-- On merge to `main`, the Release workflow runs `changesets/action` which either opens a versioning PR or publishes to npm
+- The repack build mirrors the upstream version and updates the changelog
+- The daily workflow commits a tested repack directly to `main`
+- Uses [Changesets](https://github.com/changesets/changesets) to publish the package and create its release tag
 
 ## Tech Stack
 

@@ -1,12 +1,5 @@
 # test-dayjs
 
-## 1.0.3
-
-### Patch Changes
-
-- Updated dependencies [d362591]
-  - @esm-repacks/dayjs@1.11.24
-
 ## 1.0.2
 
 ### Patch Changes

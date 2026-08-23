@@ -5,60 +5,105 @@ on:
     - cron: '0 6 * * *'
   workflow_dispatch:
 
+concurrency:
+  group: dayjs-release
+  cancel-in-progress: false
+
 jobs:
   check:
     runs-on: ubuntu-latest
     permissions:
-      actions: write
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
+          registry-url: https://registry.npmjs.org
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v5
 
-      - name: Get current version
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Get current dayjs version
         id: current
         run: |
-          CURRENT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('packages/dayjs/package.json','utf8')).version)")
-          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+          CURRENT=$(node -e "const version = require('./packages/dayjs/package.json').devDependencies.dayjs; console.log(version.replace(/^[~^]/, ''))")
+          echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
 
       - name: Get latest dayjs version
         id: latest
         run: |
           LATEST=$(npm view dayjs version)
-          echo "version=$LATEST" >> $GITHUB_OUTPUT
+          echo "version=$LATEST" >> "$GITHUB_OUTPUT"
 
       - name: Compare versions
         id: compare
+        env:
+          CURRENT_VERSION: ${{ steps.current.outputs.version }}
+          LATEST_VERSION: ${{ steps.latest.outputs.version }}
         run: |
-          if [ "${{ steps.current.outputs.version }}" != "${{ steps.latest.outputs.version }}" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "New dayjs version available: ${{ steps.latest.outputs.version }} (current: ${{ steps.current.outputs.version }})"
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "New dayjs version available: $LATEST_VERSION (current: $CURRENT_VERSION)"
           else
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "dayjs is up to date: ${{ steps.current.outputs.version }}"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "dayjs is up to date: $CURRENT_VERSION"
           fi
 
-      - name: Trigger repack
+      - name: Check for an unpublished release
+        id: release
+        env:
+          LATEST_VERSION: ${{ steps.latest.outputs.version }}
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./packages/dayjs/package.json').version")
+          PUBLISHED_VERSION=$(npm view @esm-repacks/dayjs version 2>/dev/null || true)
+          if [ "$PACKAGE_VERSION" = "$LATEST_VERSION" ] && [ "$PACKAGE_VERSION" != "$PUBLISHED_VERSION" ]; then
+            echo "pending=true" >> "$GITHUB_OUTPUT"
+            echo "Unpublished release found: @esm-repacks/dayjs@$PACKAGE_VERSION"
+          else
+            echo "pending=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update dayjs
         if: steps.compare.outputs.changed == 'true'
-        uses: actions/github-script@v8
-        with:
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'repack.yml',
-              ref: 'main',
-              inputs: {
-                dayjs_version: '${{ steps.latest.outputs.version }}'
-              },
-              headers: {
-                'X-GitHub-Api-Version': '2022-11-28'
-              }
-            });
+        env:
+          LATEST_VERSION: ${{ steps.latest.outputs.version }}
+        run: pnpm -C packages/dayjs add -D "dayjs@$LATEST_VERSION"
+
+      - name: Build
+        if: steps.compare.outputs.changed == 'true' || steps.release.outputs.pending == 'true'
+        run: pnpm -C packages/dayjs run build
+
+      - name: Test
+        if: steps.compare.outputs.changed == 'true' || steps.release.outputs.pending == 'true'
+        run: pnpm -C packages/dayjs run test
+
+      - name: Commit and push release
+        if: steps.compare.outputs.changed == 'true'
+        env:
+          LATEST_VERSION: ${{ steps.latest.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "chore: release dayjs $LATEST_VERSION"
+          git push origin HEAD:main
+
+      - name: Publish unpublished packages
+        if: steps.compare.outputs.changed == 'true' || steps.release.outputs.pending == 'true'
+        run: pnpm run release
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Push release tags
+        if: steps.compare.outputs.changed == 'true' || steps.release.outputs.pending == 'true'
+        run: git push origin --tags
