@@ -1,5 +1,11 @@
 # @esm-repacks/dayjs
 
+## 1.11.24
+
+### Patch Changes
+
+- d362591: Update dayjs to 1.11.23
+
 ## 1.11.23
 
 ### Patch Changes
