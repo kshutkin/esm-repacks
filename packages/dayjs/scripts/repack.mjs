@@ -596,6 +596,7 @@ console.log(`📦 dayjs version: ${dayjsVersion}`);
 
 // 3. Copy core ESM files
 ensureDir(distDir);
+copyFileSync(join(dayjsDir, 'LICENSE'), join(distDir, 'LICENSE'));
 for (const file of ['constant.js', 'utils.js']) {
   copyAndTransformJs(join(dayjsEsmDir, file), join(distDir, file));
 }

@@ -9,6 +9,7 @@ import { Project, ts } from 'ts-morph';
 const pkgDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 let tempDir;
 let consumerDir;
+let installedDir;
 
 beforeAll(() => {
   tempDir = mkdtempSync(join(tmpdir(), 'dayjs-packed-'));
@@ -21,7 +22,7 @@ beforeAll(() => {
   execFileSync('pnpm', ['pack', '--pack-destination', tempDir], { cwd: stagingDir, stdio: 'pipe' });
 
   consumerDir = join(tempDir, 'consumer');
-  const installedDir = join(consumerDir, 'node_modules', '@esm-repacks', 'dayjs');
+  installedDir = join(consumerDir, 'node_modules', '@esm-repacks', 'dayjs');
   mkdirSync(installedDir, { recursive: true });
   writeFileSync(join(consumerDir, 'package.json'), '{"type":"module"}');
   const { version } = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8'));
@@ -31,6 +32,12 @@ beforeAll(() => {
 
 afterAll(() => {
   if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+});
+
+it('includes the complete upstream license in the packed package', () => {
+  expect(readFileSync(join(installedDir, 'LICENSE'), 'utf8')).toBe(
+    readFileSync(join(pkgDir, 'node_modules', 'dayjs', 'LICENSE'), 'utf8'),
+  );
 });
 
 function typecheck(source, options = {}) {
