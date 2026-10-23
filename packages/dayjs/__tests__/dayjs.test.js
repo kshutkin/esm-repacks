@@ -178,10 +178,11 @@ describe('type declarations', () => {
     expect(indexDts).toContain('declare const dayjs: DayjsStatic');
   });
 
-  it('should have export interface Dayjs {} merge point in index.d.ts', async () => {
+  it('should describe Dayjs instances with an augmentable interface', async () => {
     const { readFileSync } = await import('node:fs');
     const indexDts = readFileSync(resolve(distDir, 'index.d.ts'), 'utf8');
-    expect(indexDts).toContain('export interface Dayjs {}');
+    expect(indexDts).toContain('export interface Dayjs {');
+    expect(indexDts).not.toContain('export class Dayjs');
   });
 
   it('should not have declare namespace dayjs in index.d.ts', async () => {
@@ -306,7 +307,7 @@ describe('type declarations', () => {
     expect(indexDts).toContain('export type QUnitType');
     expect(indexDts).toContain('export type ManipulateType');
     expect(indexDts).toContain('export type PluginFunc');
-    expect(indexDts).toContain('export class Dayjs');
+    expect(indexDts).toContain('export interface Dayjs {');
   });
 });
 

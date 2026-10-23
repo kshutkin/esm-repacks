@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Project, ts } from 'ts-morph';
 
 const pkgDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 let tempDir;
@@ -22,6 +23,7 @@ beforeAll(() => {
   consumerDir = join(tempDir, 'consumer');
   const installedDir = join(consumerDir, 'node_modules', '@esm-repacks', 'dayjs');
   mkdirSync(installedDir, { recursive: true });
+  writeFileSync(join(consumerDir, 'package.json'), '{"type":"module"}');
   const { version } = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8'));
   execFileSync('tar', ['-xzf', join(tempDir, `esm-repacks-dayjs-${version}.tgz`),
     '-C', installedDir, '--strip-components=1']);
@@ -29,6 +31,40 @@ beforeAll(() => {
 
 afterAll(() => {
   if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+});
+
+function typecheck(source, options = {}) {
+  const file = join(consumerDir, 'index.ts');
+  writeFileSync(file, source);
+  const project = new Project({
+    compilerOptions: {
+      module: ts.ModuleKind.Node16,
+      moduleResolution: ts.ModuleResolutionKind.Node16,
+      target: ts.ScriptTarget.ES2022,
+      strict: true,
+      noEmit: true,
+      types: [],
+      ...options,
+    },
+  });
+  project.addSourceFileAtPath(file);
+  return project.getPreEmitDiagnostics().map(d => ts.flattenDiagnosticMessageText(d.compilerObject.messageText, '\n'));
+}
+
+it('exports Dayjs as a type while preserving plugin constructors and augmentation', () => {
+  expect(typecheck(`
+    import dayjs, { Dayjs } from '@esm-repacks/dayjs';
+    import utc from '@esm-repacks/dayjs/plugin/utc';
+    dayjs.extend(utc);
+    const date: Dayjs = dayjs().utc();
+    dayjs.extend((_option, Constructor) => {
+      const instance: Dayjs = new Constructor('2023-06-15');
+      instance.utc();
+      Constructor.prototype.utc();
+    });
+    // @ts-expect-error Dayjs has no named runtime export.
+    new Dayjs();
+  `)).toEqual([]);
 });
 
 it('imports every packed entry with native Node.js resolution', () => {

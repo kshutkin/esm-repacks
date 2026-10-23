@@ -315,6 +315,27 @@ function transformIndexDts(content) {
 
   // Type/interface/class declarations at module level
   for (const chunk of typeChunks) {
+    if (chunk.isClass && chunk.name === 'Dayjs') {
+      const dayjsClass = ns.getClass('Dayjs');
+      out.push('export interface Dayjs {');
+      for (const member of dayjsClass.getMembers()) {
+        if (member.getKind() !== SyntaxKind.Constructor) {
+          out.push(member.getFullText().replace(/^  /gm, ''));
+        }
+      }
+      out.push('}');
+      out.push('');
+      // The constructor is passed to plugins but is not a runtime export.
+      out.push('interface DayjsConstructor {');
+      for (const constructor of dayjsClass.getConstructors()) {
+        out.push('  ' + constructor.getText().replace(/^constructor\b/, 'new').replace(/;$/, '') + ': Dayjs;');
+      }
+      out.push('  readonly prototype: Dayjs;');
+      out.push('}');
+      out.push('');
+      continue;
+    }
+
     for (const line of chunk.lines) {
       // Strip namespace-level indentation (2 spaces)
       let transformed = line.replace(/^  /, '');
@@ -334,12 +355,9 @@ function transformIndexDts(content) {
 
       // Fix PluginFunc: change `typeof dayjs` to `DayjsStatic`
       transformed = transformed.replace(/typeof\s+dayjs(?!\w)/g, 'DayjsStatic');
+      transformed = transformed.replace(/typeof\s+Dayjs(?!\w)/g, 'DayjsConstructor');
 
       out.push(transformed);
-    }
-    // After class Dayjs, add the empty interface merge point for plugin augmentation
-    if (chunk.isClass && chunk.name === 'Dayjs') {
-      out.push('export interface Dayjs {}');
     }
     out.push('');
   }
