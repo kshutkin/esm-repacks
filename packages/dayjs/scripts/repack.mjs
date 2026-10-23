@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, existsSync, copyFileSync, statSync } from 'node:fs';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname, resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Project, SyntaxKind } from 'ts-morph';
 
@@ -16,8 +16,19 @@ function ensureDir(dir) {
 }
 
 function copyAndTransformJs(src, dest) {
-  let content = readFileSync(src, 'utf8');
-  writeFileSync(dest, content, 'utf8');
+  const content = readFileSync(src, 'utf8');
+  writeFileSync(dest, rewriteRelativeImports(content), 'utf8');
+}
+
+function rewriteRelativeImports(content) {
+  const sf = parseSource(content, '__input.js');
+  for (const declaration of sf.getImportDeclarations()) {
+    const specifier = declaration.getModuleSpecifierValue();
+    if (specifier.startsWith('.') && !extname(specifier)) {
+      declaration.setModuleSpecifier(`${specifier}.js`);
+    }
+  }
+  return sf.getFullText();
 }
 
 // ---------------------------------------------------------------------------
@@ -534,12 +545,6 @@ function copyAndTransformDts(src, dest, kind = 'locale') {
   writeFileSync(dest, content, 'utf8');
 }
 
-function fixPluginImports(filePath) {
-  // Plugin files are in dist/plugin/{name}/index.js (same structure as dayjs/esm)
-  // They import from ../../constant, ../../utils, ../../index which resolves correctly
-  // No rewriting needed since we preserve the directory structure
-}
-
 function copyPluginDir(srcDir, destDir) {
   ensureDir(destDir);
   const entries = readdirSync(srcDir);
@@ -579,7 +584,7 @@ for (const file of ['constant.js', 'utils.js']) {
 // Copy & transform index.js: convert Babel IIFE classes to real ES classes
 {
   let indexContent = readFileSync(join(dayjsEsmDir, 'index.js'), 'utf8');
-  indexContent = transformIIFEToClass(indexContent);
+  indexContent = rewriteRelativeImports(transformIIFEToClass(indexContent));
   writeFileSync(join(distDir, 'index.js'), indexContent, 'utf8');
 }
 console.log('✅ Copied and transformed core files');
