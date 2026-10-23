@@ -8,7 +8,9 @@
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "node scripts/release.mjs",
+    "release:tags": "node scripts/release-tags.mjs",
     "build": "pnpm -r run build",
-    "test": "pnpm -r run test"
+    "test": "pnpm run test:release && pnpm -r run test",
+    "test:release": "node --test scripts/__tests__/*.test.mjs"
   }
 }

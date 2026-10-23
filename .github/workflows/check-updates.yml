@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Test release automation
+        run: pnpm run test:release
+
       - name: Get current dayjs version
         id: current
         run: |
@@ -86,13 +89,16 @@ jobs:
         if: steps.compare.outputs.changed == 'true' || steps.release.outputs.pending == 'true'
         run: pnpm -C packages/dayjs run test
 
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Commit and push release
         if: steps.compare.outputs.changed == 'true'
         env:
           LATEST_VERSION: ${{ steps.latest.outputs.version }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --all
           git commit -m "chore: release dayjs $LATEST_VERSION"
           git push origin HEAD:main
@@ -105,5 +111,4 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Push release tags
-        if: steps.compare.outputs.changed == 'true' || steps.release.outputs.pending == 'true'
-        run: git push origin --tags
+        run: pnpm run release:tags

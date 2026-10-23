@@ -16,6 +16,10 @@ The project uses one workflow to automatically detect, repack, version, and publ
   5. Publishes the package and pushes its release tag
 - If the commit succeeds but npm publishing fails, rerunning the workflow detects,
   rebuilds, tests, and publishes the pending version without another bump
+- Tag recovery runs even when there is no new upstream version. It verifies that
+  the exact package version is published, creates a missing annotated tag, and
+  retries its push without changing an existing tag. Run `pnpm release:tags` to
+  retry this step locally.
 
 ## Required Secrets
 
