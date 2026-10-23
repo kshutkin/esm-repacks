@@ -29,4 +29,5 @@ dayjs ships ESM files but does not expose them via `exports` in `package.json`. 
 
 - A daily cron job checks for new dayjs releases on npm
 - When a new version is detected, the workflow builds and tests the repack
-- The workflow mirrors the upstream version, commits directly to `main`, and publishes to npm
+- The workflow versions the repack with Changesets, commits directly to `main`, and publishes to npm
+- Repack versions can diverge from dayjs so packaging fixes can ship independently

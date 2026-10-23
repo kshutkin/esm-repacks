@@ -324,10 +324,10 @@ describe('exports map', () => {
     expect(pkg.exports['./locale/en'].import).toBe('./dist/locale/en.js');
   });
 
-  it('should have version matching dayjs', async () => {
+  it('should record the bundled upstream version independently of the repack version', async () => {
     const { readFileSync } = await import('node:fs');
     const pkg = JSON.parse(readFileSync(resolve(distDir, '..', 'package.json'), 'utf8'));
     const dayjsPkg = JSON.parse(readFileSync(resolve(distDir, '..', 'node_modules', 'dayjs', 'package.json'), 'utf8'));
-    expect(pkg.version).toBe(dayjsPkg.version);
+    expect(pkg.upstreamVersion).toBe(dayjsPkg.version);
   });
 });

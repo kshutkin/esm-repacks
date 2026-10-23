@@ -655,7 +655,6 @@ console.log(`✅ Copied locale type declarations`);
 // 9. Generate exports map and update package.json
 const pkgJsonPath = join(pkgDir, 'package.json');
 const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf8'));
-const previousVersion = pkg.version;
 
 const exports = {
   '.': {
@@ -685,34 +684,13 @@ for (const name of localeNames) {
   };
 }
 
-if (previousVersion !== dayjsVersion) {
-  const changelogPath = join(pkgDir, 'CHANGELOG.md');
-  const changelog = readFileSync(changelogPath, 'utf8');
-  const title = `# ${pkg.name}`;
-  if (!changelog.startsWith(title)) {
-    throw new Error(`Expected ${changelogPath} to start with "${title}"`);
-  }
-
-  const [previousMajor, previousMinor] = previousVersion.split('.').map(Number);
-  const [nextMajor, nextMinor] = dayjsVersion.split('.').map(Number);
-  const changeType = previousMajor !== nextMajor
-    ? 'Major'
-    : previousMinor !== nextMinor
-      ? 'Minor'
-      : 'Patch';
-  const previousEntries = changelog.slice(title.length).replace(/^\n+/, '');
-  const entry = `## ${dayjsVersion}\n\n### ${changeType} Changes\n\n- Update dayjs to ${dayjsVersion}`;
-  writeFileSync(changelogPath, `${title}\n\n${entry}\n\n${previousEntries}`, 'utf8');
-  console.log(`✅ Updated CHANGELOG.md (${dayjsVersion})`);
-}
-
-pkg.version = dayjsVersion;
+pkg.upstreamVersion = dayjsVersion;
 pkg.exports = exports;
 pkg.main = './dist/index.js';
 pkg.module = './dist/index.js';
 pkg.types = './dist/index.d.ts';
 
 writeFileSync(pkgJsonPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
-console.log(`✅ Updated package.json (version: ${dayjsVersion}, ${Object.keys(exports).length} exports)`);
+console.log(`✅ Updated package.json (version: ${pkg.version}, upstream: ${dayjsVersion}, ${Object.keys(exports).length} exports)`);
 
 console.log('✅ Repack complete!');

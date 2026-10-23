@@ -145,7 +145,9 @@ If you are using a bundler such as Vite, esbuild, webpack 5, or Rollup, your Typ
 
 ## Versioning
 
-This package mirrors the dayjs version exactly. `@esm-repacks/dayjs@1.11.13` wraps `dayjs@1.11.13`. A daily automated workflow checks for new dayjs releases and publishes updated repacks.
+This package uses independent semantic versions so repack fixes can ship between dayjs releases. The published `package.json` records the bundled dayjs version in `upstreamVersion`.
+
+A daily automated workflow checks for new dayjs releases and publishes updated repacks. An upstream patch, minor, or major update applies the corresponding bump to the repack's current version. For example, a repack fix can release as `1.11.24` with dayjs `1.11.23`; the next upstream `1.11.24` then ships in repack `1.11.25`.
 
 ## License
 

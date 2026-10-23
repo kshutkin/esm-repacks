@@ -40,6 +40,14 @@ it('includes the complete upstream license in the packed package', () => {
   );
 });
 
+it('preserves the repack version and upstream version in the packed manifest', () => {
+  const pkg = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8'));
+  const packed = JSON.parse(readFileSync(join(installedDir, 'package.json'), 'utf8'));
+  expect(packed.version).toBe(pkg.version);
+  expect(packed.upstreamVersion).toBe(pkg.upstreamVersion);
+  expect(packed.upstreamVersion).toBeDefined();
+});
+
 function typecheck(source, options = {}) {
   const file = join(consumerDir, 'index.ts');
   writeFileSync(file, source);

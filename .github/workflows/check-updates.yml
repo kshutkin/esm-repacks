@@ -63,12 +63,10 @@ jobs:
 
       - name: Check for an unpublished release
         id: release
-        env:
-          LATEST_VERSION: ${{ steps.latest.outputs.version }}
         run: |
           PACKAGE_VERSION=$(node -p "require('./packages/dayjs/package.json').version")
-          PUBLISHED_VERSION=$(npm view @esm-repacks/dayjs version 2>/dev/null || true)
-          if [ "$PACKAGE_VERSION" = "$LATEST_VERSION" ] && [ "$PACKAGE_VERSION" != "$PUBLISHED_VERSION" ]; then
+          PUBLISHED_VERSION=$(npm view "@esm-repacks/dayjs@$PACKAGE_VERSION" version 2>/dev/null || true)
+          if [ "$PACKAGE_VERSION" != "$PUBLISHED_VERSION" ]; then
             echo "pending=true" >> "$GITHUB_OUTPUT"
             echo "Unpublished release found: @esm-repacks/dayjs@$PACKAGE_VERSION"
           else
@@ -78,8 +76,12 @@ jobs:
       - name: Update dayjs
         if: steps.compare.outputs.changed == 'true'
         env:
+          CURRENT_VERSION: ${{ steps.current.outputs.version }}
           LATEST_VERSION: ${{ steps.latest.outputs.version }}
-        run: pnpm -C packages/dayjs add -D "dayjs@$LATEST_VERSION"
+        run: |
+          pnpm -C packages/dayjs add -D --save-exact "dayjs@$LATEST_VERSION"
+          node scripts/dayjs-changeset.mjs "$CURRENT_VERSION" "$LATEST_VERSION"
+          pnpm run version-packages
 
       - name: Build
         if: steps.compare.outputs.changed == 'true' || steps.release.outputs.pending == 'true'
