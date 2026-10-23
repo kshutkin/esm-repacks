@@ -646,6 +646,9 @@ for (const file of localeDtsFiles) {
     copyAndTransformDts(src, join(localeDestDir, file), 'locale');
   }
 }
+// All locale values share a declaration that can load without the core types.
+writeFileSync(join(localeDestDir, 'locale.d.ts'),
+  '/// <reference path="./types.d.ts" />\n\ndeclare const locale: ILocale;\nexport default locale;\n', 'utf8');
 console.log(`✅ Copied locale type declarations`);
 
 // 9. Generate exports map and update package.json
@@ -676,6 +679,7 @@ for (const name of plugins.sort()) {
 const localeNames = locales.map(f => f.replace('.js', '')).sort();
 for (const name of localeNames) {
   exports[`./locale/${name}`] = {
+    types: './dist/locale/locale.d.ts',
     import: `./dist/locale/${name}.js`
   };
 }

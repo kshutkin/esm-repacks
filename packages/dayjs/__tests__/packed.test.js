@@ -67,6 +67,20 @@ it('exports Dayjs as a type while preserving plugin constructors and augmentatio
   `)).toEqual([]);
 });
 
+it.each([
+  ['bundler', { module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler }],
+  ['node16', {}],
+  ['nodenext', { module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext }],
+])('types standalone locale imports with %s resolution', (_name, options) => {
+  expect(typecheck(`
+    import fr from '@esm-repacks/dayjs/locale/fr';
+    import de from '@esm-repacks/dayjs/locale/de';
+    const names: string[] = [fr.name, de.name];
+    // @ts-expect-error Locale names are strings, not numbers or any.
+    const invalid: number = fr.name;
+  `, options)).toEqual([]);
+});
+
 it('imports every packed entry with native Node.js resolution', () => {
   const { exports } = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8'));
   const output = execFileSync(process.execPath, ['--input-type=module', '--eval', `
