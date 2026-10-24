@@ -1,37 +1,70 @@
 # dayjs ESM Type Declarations
 
-> Full implementation plan: [packages/dayjs/PLAN-ESM-TYPES.md](../packages/dayjs/PLAN-ESM-TYPES.md)
+The build transforms upstream declarations into ESM declarations using `ts-morph`
+in `packages/dayjs/scripts/repack.mjs`. Core, plugin, and locale imports support
+TypeScript's `bundler`, `node16`, and `nodenext` module resolution modes.
 
-## Problem
+The [original design plan](../packages/dayjs/PLAN-ESM-TYPES.md) records the design
+process; this document describes the implemented behavior.
 
-`@esm-repacks/dayjs` currently works only with `"moduleResolution": "bundler"`. Under `"node16"` / `"nodenext"`, TypeScript enforces strict ESM semantics:
+## Core declarations
 
-- `export = dayjs` (CJS-compatible form) is not compatible with `import dayjs from '...'`
-- Results in `TS1192: Module has no default export`
+`dist/index.d.ts` exports a default callable `dayjs` value described by the
+`DayjsStatic` interface. Types such as `Dayjs`, `ConfigType`, and `PluginFunc` are
+named exports:
 
-This is independent of the `"exports"` map resolution — the modules are *found* correctly, they just can't be consumed as ESM default imports.
+```ts
+import dayjs from '@esm-repacks/dayjs';
+import type { Dayjs, PluginFunc } from '@esm-repacks/dayjs';
 
-## Solution (planned)
+const date: Dayjs = dayjs('2023-06-15');
+const plugin: PluginFunc = (_option, Constructor, factory) => {
+  Constructor.prototype.format;
+  factory.isDayjs(date);
+};
+dayjs.extend(plugin);
+```
 
-Transform `.d.ts` files at build time (inside `scripts/repack.mjs`) using **ts-morph**:
+`Dayjs` is an augmentable instance interface, with no named runtime constructor
+export. `PluginFunc` describes the constructor passed to plugins with a separate
+constructor interface. The upstream namespace's static functions and properties
+become members of `DayjsStatic`; `dayjs.extend()` returns that callable interface.
 
-### `dist/index.d.ts`
-- Remove `export = dayjs`
-- Flatten `declare namespace dayjs { ... }` to module-level exports
-- Replace static function/value exports with a new `export interface DayjsStatic { }` that plugins can augment via interface merging
-- Add `declare const dayjs: DayjsStatic; export default dayjs`
+## Plugin declarations
 
-### `dist/plugin/*/index.d.ts`
-- `export = plugin` → `export default plugin`
-- `export function/const` inside `declare module` → `interface DayjsStatic { }` entries (interface merging instead of namespace mutation)
-- Remove `export as namespace` (UMD artifact, not needed for ESM)
+Each plugin declaration uses `export default plugin` and augments
+`@esm-repacks/dayjs`:
 
-## Key Design Decision: `DayjsStatic` interface
+- Instance methods merge into the exported `Dayjs` interface.
+- Static functions and properties merge into `DayjsStatic`.
+- Other upstream interfaces and types are preserved, including `ConfigTypeMap`
+  extensions and the duration plugin's type namespace.
 
-Using a named exported `interface DayjsStatic` (rather than a namespace or ambient `declare module` block per plugin) keeps augmentation **conditional**: a plugin's static methods only appear on the type when that plugin is actually imported. This correctly mirrors runtime behaviour.
+Augmentation applies when a plugin is imported. Plugins that are not imported do
+not contribute their methods. Call `dayjs.extend(plugin)` to install the plugin at
+runtime; importing its declaration does not perform registration.
 
-The single-file ambient bundle approach (dts-buddy style) was rejected because it makes all plugin augmentations unconditionally active, regardless of which plugins you've actually called `dayjs.extend()` on.
+## Locale declarations
 
-## Status
+Each exported locale points to `dist/locale/locale.d.ts`, which references the
+shared `ILocale` declaration in `dist/locale/types.d.ts`. Core references that same
+shared declaration directly, so locale imports also type-check without core.
 
-Planned. `ts-morph` is already a devDependency in `packages/dayjs`. The transform rules are fully specified in the plan doc linked above, including a pattern inventory for all 37 plugins.
+The upstream ambient `locale/*` declaration is omitted. TypeScript follows the
+explicit exports map and rejects nonexistent or unexported locale paths.
+
+## Validation
+
+Run from the repository root:
+
+```sh
+pnpm -C packages/dayjs run build
+pnpm -C packages/dayjs run test
+pnpm -C packages/test-dayjs run typecheck
+pnpm -C packages/test-dayjs run typecheck:node16
+```
+
+Packed-consumer tests cover native Node.js imports, constructor and plugin
+augmentation types, and valid and invalid locale imports under Bundler, Node16,
+and NodeNext resolution. The integration fixture checks core, UTC, duration, and
+timezone APIs, plus absent plugin methods, under Bundler and Node16 resolution.

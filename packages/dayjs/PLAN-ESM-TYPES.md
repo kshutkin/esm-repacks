@@ -1,5 +1,8 @@
 # Plan: Transform dayjs Type Declarations to `export default`
 
+> Historical design plan, now implemented. See [current type documentation](../../docs/dayjs-types.md)
+> for the shipped declaration structure and validation commands.
+
 ## Goal
 
 Make `@esm-repacks/dayjs` work with `"moduleResolution": "node16"` and `"nodenext"` in addition
