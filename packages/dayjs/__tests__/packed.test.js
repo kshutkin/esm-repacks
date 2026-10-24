@@ -10,6 +10,11 @@ const pkgDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 let tempDir;
 let consumerDir;
 let installedDir;
+const resolutions = [
+  ['bundler', { module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler }],
+  ['node16', {}],
+  ['nodenext', { module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext }],
+];
 
 beforeAll(() => {
   tempDir = mkdtempSync(join(tmpdir(), 'dayjs-packed-'));
@@ -82,11 +87,7 @@ it('exports Dayjs as a type while preserving plugin constructors and augmentatio
   `)).toEqual([]);
 });
 
-it.each([
-  ['bundler', { module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler }],
-  ['node16', {}],
-  ['nodenext', { module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext }],
-])('types standalone locale imports with %s resolution', (_name, options) => {
+it.each(resolutions)('types standalone locale imports with %s resolution', (_name, options) => {
   expect(typecheck(`
     import fr from '@esm-repacks/dayjs/locale/fr';
     import de from '@esm-repacks/dayjs/locale/de';
@@ -94,6 +95,19 @@ it.each([
     // @ts-expect-error Locale names are strings, not numbers or any.
     const invalid: number = fr.name;
   `, options)).toEqual([]);
+});
+
+it.each(resolutions)('rejects unexported locale imports with %s resolution', (_name, options) => {
+  expect(typecheck(`
+    import dayjs from '@esm-repacks/dayjs';
+    import fr from '@esm-repacks/dayjs/locale/fr';
+    import missing from '@esm-repacks/dayjs/locale/does-not-exist';
+    import internal from '@esm-repacks/dayjs/locale/types';
+    dayjs.locale(fr.name);
+  `, options)).toEqual([
+    expect.stringContaining("Cannot find module '@esm-repacks/dayjs/locale/does-not-exist'"),
+    expect.stringContaining("Cannot find module '@esm-repacks/dayjs/locale/types'"),
+  ]);
 });
 
 it('imports every packed entry with native Node.js resolution', () => {

@@ -215,8 +215,8 @@ function rewriteModuleNames(content) {
   content = content.replace(/declare module 'dayjs\/(.*?)'/g, "declare module '@esm-repacks/dayjs/$1'");
   content = content.replace(/from 'dayjs'/g, "from '@esm-repacks/dayjs'");
   content = content.replace(/from 'dayjs\/(.*?)'/g, "from '@esm-repacks/dayjs/$1'");
-  // Fix reference paths
-  content = content.replace(/\/\/\/ <reference path="\.\/locale\/index\.d\.ts" \/>/g, '/// <reference path="./locale/index.d.ts" />');
+  // Load locale types without the upstream wildcard module declaration.
+  content = content.replace(/\/\/\/ <reference path="\.\/locale\/index\.d\.ts" \/>/g, '/// <reference path="./locale/types.d.ts" />');
   return content;
 }
 
@@ -640,13 +640,7 @@ for (const file of locales) {
 console.log(`✅ Copied ${locales.length} locales`);
 
 // 8. Copy locale type declarations
-const localeDtsFiles = ['index.d.ts', 'types.d.ts'];
-for (const file of localeDtsFiles) {
-  const src = join(localeSrcDir, file);
-  if (existsSync(src)) {
-    copyAndTransformDts(src, join(localeDestDir, file), 'locale');
-  }
-}
+copyAndTransformDts(join(localeSrcDir, 'types.d.ts'), join(localeDestDir, 'types.d.ts'), 'locale');
 // All locale values share a declaration that can load without the core types.
 writeFileSync(join(localeDestDir, 'locale.d.ts'),
   '/// <reference path="./types.d.ts" />\n\ndeclare const locale: ILocale;\nexport default locale;\n', 'utf8');

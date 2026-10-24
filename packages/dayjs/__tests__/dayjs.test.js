@@ -145,7 +145,7 @@ describe('type declarations', () => {
   });
 
   it('should have locale type declarations', () => {
-    expect(existsSync(resolve(distDir, 'locale', 'index.d.ts'))).toBe(true);
+    expect(existsSync(resolve(distDir, 'locale', 'locale.d.ts'))).toBe(true);
     expect(existsSync(resolve(distDir, 'locale', 'types.d.ts'))).toBe(true);
   });
 
