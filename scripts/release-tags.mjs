@@ -12,6 +12,15 @@ if (publishedVersion !== version) {
 const tag = `${name}@${version}`;
 const existingTag = execFileSync('git', ['tag', '--list', tag], { encoding: 'utf8' }).trim();
 if (!existingTag) {
-  execFileSync('git', ['tag', '-a', tag, '-m', tag], { stdio: 'inherit' });
+  const gitHead = execFileSync('npm', ['view', `${name}@${version}`, 'gitHead'], {
+    encoding: 'utf8',
+  }).trim();
+  if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(gitHead)) {
+    throw new Error(`Cannot recover ${tag}: registry gitHead is missing or invalid. Restore the tag at the verified release commit manually.`);
+  }
+  const commit = execFileSync('git', ['rev-parse', '--verify', `${gitHead}^{commit}`], {
+    encoding: 'utf8',
+  }).trim();
+  execFileSync('git', ['tag', '-a', tag, commit, '-m', tag], { stdio: 'inherit' });
 }
 execFileSync('git', ['push', 'origin', `refs/tags/${tag}`], { stdio: 'inherit' });

@@ -23,9 +23,15 @@ function fixture(t, published = true) {
   // Only registry reads are allowed; an accidental publish fails the test.
   writeFileSync(join(bin, 'npm'), `#!/usr/bin/env node
     const assert = require('node:assert/strict');
-    assert.deepEqual(process.argv.slice(2), ['view', '@esm-repacks/dayjs@1.11.23', 'version']);
-    if (${published}) console.log('1.11.23');
-    else process.exit(1);
+    const args = process.argv.slice(2);
+    assert.deepEqual(args.slice(0, 2), ['view', '@esm-repacks/dayjs@1.11.23']);
+    assert.equal(args.length, 3);
+    if (!${published}) process.exit(1);
+    if (args[2] === 'version') console.log('1.11.23');
+    else {
+      assert.equal(args[2], 'gitHead');
+      console.log(require('node:fs').readFileSync(${JSON.stringify(join(temp, 'git-head'))}, 'utf8'));
+    }
   `, { mode: 0o755 });
   const git = (...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' }).trim();
   git('init', '--quiet', '--initial-branch=main');
@@ -36,10 +42,12 @@ function fixture(t, published = true) {
   git('add', '.');
   git('commit', '--quiet', '-m', 'Release fixture');
   git('push', '--quiet', 'origin', 'HEAD:main');
+  const setPublishedCommit = commit => writeFileSync(join(temp, 'git-head'), commit);
+  setPublishedCommit(git('rev-parse', 'HEAD'));
   const run = () => execFileSync(process.execPath, [script], {
     cwd, env: { ...process.env, PATH: bin + delimiter + process.env.PATH }, stdio: 'pipe',
   });
-  return { git, run, remote };
+  return { git, run, remote, setPublishedCommit };
 }
 
 test('recovers and pushes a missing tag for an already published version', t => {
@@ -49,6 +57,35 @@ test('recovers and pushes a missing tag for an already published version', t => 
   assert.equal(git('cat-file', '-t', tag), 'tag');
   assert.equal(git('rev-parse', `${tag}^{commit}`), commit);
   assert.ok(git('ls-remote', '--tags', 'origin', `refs/tags/${tag}`));
+});
+
+test('recovers a lost tag at the published commit after main advances', t => {
+  const { git, run } = fixture(t);
+  const publishedCommit = git('rev-parse', 'HEAD');
+  git('commit', '--quiet', '--allow-empty', '-m', 'Unreleased changes');
+  run();
+  assert.equal(git('rev-parse', `${tag}^{commit}`), publishedCommit);
+  assert.ok(git('ls-remote', '--tags', 'origin', `refs/tags/${tag}`));
+});
+
+for (const commit of ['', 'main', '0'.repeat(40)]) {
+  test(`does not guess a release commit when gitHead is ${commit || 'missing'}`, t => {
+    const { git, run, setPublishedCommit } = fixture(t);
+    setPublishedCommit(commit);
+    assert.throws(run);
+    assert.equal(git('tag', '--list'), '');
+    assert.equal(git('ls-remote', '--tags', 'origin'), '');
+  });
+}
+
+test('pushes an existing tag even when registry gitHead is missing', t => {
+  const { git, run, setPublishedCommit } = fixture(t);
+  git('tag', '-a', tag, '-m', tag);
+  const object = git('rev-parse', tag);
+  setPublishedCommit('');
+  git('commit', '--quiet', '--allow-empty', '-m', 'Later commit');
+  run();
+  assert.equal(git('ls-remote', '--tags', 'origin', `refs/tags/${tag}`).split(/\s/)[0], object);
 });
 
 test('retries a failed tag push without moving the release tag', t => {

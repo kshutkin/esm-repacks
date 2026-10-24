@@ -19,9 +19,11 @@ The project uses one workflow to automatically detect, repack, version, and publ
   rebuilds, tests, and publishes the pending version without another bump. This
   checks the exact repack version on npm, independently of upstream version numbers.
 - Tag recovery runs even when there is no new upstream version. It verifies that
-  the exact package version is published, creates a missing annotated tag, and
-  retries its push without changing an existing tag. Run `pnpm release:tags` to
-  retry this step locally.
+  the exact package version is published and uses the registry's `gitHead` commit
+  to create a missing annotated tag. Recovery stops if that metadata is missing,
+  invalid, or unavailable in the checkout; restore the tag manually at the verified
+  release commit in that case. Existing tags can be pushed again without registry
+  commit metadata and are never moved. Run `pnpm release:tags` to retry locally.
 
 ## Repack fixes between upstream releases
 
