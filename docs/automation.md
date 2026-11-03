@@ -26,7 +26,22 @@ The project uses one workflow to automatically detect, repack, version, and publ
   after publication. Recovery stops if that metadata is missing,
   invalid, or unavailable in the checkout; restore the tag manually at the verified
   release commit in that case. Existing tags can be pushed again without registry
-  commit metadata and are never moved. Run `pnpm release:tags` to retry locally.
+  commit metadata and are never moved. Registry reads force a freshness check and
+  retry E404 responses up to six times, five seconds apart, to tolerate a release
+  that is not visible immediately after publication. Other registry errors fail
+  immediately. Run `pnpm release:tags` to retry locally.
+
+If publication succeeded but tag recovery reports missing `gitHead`, identify the
+exact commit from the successful publishing workflow run. Create the tag at that
+verified commit, then retry the tag push (no version bump or republication needed):
+
+```sh
+git tag -a '@esm-repacks/dayjs@<version>' <verified-publishing-commit> -m '@esm-repacks/dayjs@<version>'
+pnpm release:tags
+```
+
+The script verifies that the version is published before pushing an existing tag.
+It never substitutes the current checkout for missing registry commit metadata.
 
 ## Repack fixes between upstream releases
 
