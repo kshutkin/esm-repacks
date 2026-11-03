@@ -3,5 +3,16 @@
   "extends": [
     "config:recommended"
   ],
-  "ignoreDeps": ["dayjs"]
+  "ignoreDeps": ["dayjs"],
+  "vulnerabilityAlerts": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "description": "Update release and test tooling automatically only for security fixes",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["@changesets/**", "vitest", "@vitest/**"],
+      "enabled": false
+    }
+  ]
 }
